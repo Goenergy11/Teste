@@ -1,0 +1,430 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  TECHNICIAN
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  ANALYSING
+  QUOTE_SENT
+  WON
+  LOST
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum CustomerType {
+  PRIVATE
+  TOURISM
+  COMPANY
+  CONDOMINIUM
+}
+
+enum ServiceType {
+  CONSTRUCTION
+  REMODEL
+  MAINTENANCE
+  TECHNICAL_SUPPORT
+  WATER_TREATMENT
+  EQUIPMENT_INSTALLATION
+}
+
+enum ServiceStatus {
+  REQUESTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenanceStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum InterventionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REFUSED
+  CANCELLED
+}
+
+enum AttachmentEntityType {
+  LEAD
+  CUSTOMER
+  POOL
+  SERVICE
+  MAINTENANCE_PLAN
+  INTERVENTION
+  QUOTE
+}
+
+enum NoteEntityType {
+  LEAD
+  CUSTOMER
+  POOL
+  SERVICE
+  MAINTENANCE_PLAN
+  INTERVENTION
+  QUOTE
+}
+
+enum NoteVisibility {
+  INTERNAL
+  CUSTOMER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(MANAGER)
+  active        Boolean   @default(true)
+
+  accounts      Account[]
+  sessions      Session[]
+  ownedLeads    Lead[]          @relation("LeadOwner")
+  services      Service[]       @relation("ServiceResponsible")
+  interventions Intervention[]  @relation("InterventionTechnician")
+  activityLogs  ActivityLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  phone        String
+  email        String?
+  location     String?
+  origin       String     @default("Website")
+  serviceType  String
+  status       LeadStatus @default(NEW)
+  priority     Priority   @default(NORMAL)
+  ownerId      String?
+  owner        User?      @relation("LeadOwner", fields: [ownerId], references: [id])
+  message      String?    @db.Text
+  nextActionAt DateTime?
+  lostReason   String?
+  convertedCustomerId String?
+  convertedCustomer   Customer? @relation("LeadConversion", fields: [convertedCustomerId], references: [id])
+
+  quotes       Quote[]
+  activityLogs ActivityLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([ownerId])
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  name           String
+  phone          String
+  email          String?
+  billingAddress String?
+  serviceAddress String?
+  nif            String?
+  customerType   CustomerType @default(PRIVATE)
+  notesText      String?      @db.Text
+  active         Boolean      @default(true)
+
+  convertedLeads Lead[]            @relation("LeadConversion")
+  pools          Pool[]
+  services       Service[]
+  maintenancePlans MaintenancePlan[]
+  interventions  Intervention[]
+  quotes          Quote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Pool {
+  id              String  @id @default(cuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name            String
+  location        String
+  poolType        String
+  constructionType String?
+  dimensions      String?
+  estimatedVolume String?
+  treatmentType   String?
+  coveringType    String?
+  heatingType     String?
+  lightingType    String?
+  automationNotes String? @db.Text
+  observations    String? @db.Text
+
+  equipment        Equipment[]
+  services         Service[]
+  maintenancePlans MaintenancePlan[]
+  interventions    Intervention[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+}
+
+model Equipment {
+  id           String   @id @default(cuid())
+  poolId       String
+  pool         Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  type         String
+  brand        String?
+  model        String?
+  serialNumber String?
+  installedAt  DateTime?
+  warrantyUntil DateTime?
+  notes        String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([poolId])
+}
+
+model Service {
+  id            String        @id @default(cuid())
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  poolId        String?
+  pool          Pool?         @relation(fields: [poolId], references: [id])
+  type          ServiceType
+  title         String
+  description   String        @db.Text
+  status        ServiceStatus @default(REQUESTED)
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  responsibleId String?
+  responsible   User?         @relation("ServiceResponsible", fields: [responsibleId], references: [id])
+  priority      Priority      @default(NORMAL)
+  internalNotes String?       @db.Text
+
+  interventions Intervention[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model MaintenancePlan {
+  id          String            @id @default(cuid())
+  customerId  String
+  customer    Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  poolId      String
+  pool        Pool              @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  periodicity String
+  monthlyValue Decimal?         @db.Decimal(10, 2)
+  annualValue  Decimal?         @db.Decimal(10, 2)
+  startDate    DateTime?
+  endDate      DateTime?
+  nextVisitAt  DateTime?
+  technicianId String?
+  technicianName String?
+  status      MaintenanceStatus @default(ACTIVE)
+  notes       String?           @db.Text
+
+  interventions Intervention[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nextVisitAt])
+}
+
+model Intervention {
+  id                String             @id @default(cuid())
+  customerId        String?
+  customer          Customer?          @relation(fields: [customerId], references: [id])
+  poolId            String?
+  pool              Pool?              @relation(fields: [poolId], references: [id])
+  serviceId         String?
+  service           Service?           @relation(fields: [serviceId], references: [id])
+  maintenancePlanId String?
+  maintenancePlan   MaintenancePlan?   @relation(fields: [maintenancePlanId], references: [id])
+  technicianId      String?
+  technician        User?              @relation("InterventionTechnician", fields: [technicianId], references: [id])
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  summary           String             @db.Text
+  waterParameters   Json?
+  materialsUsed     String?            @db.Text
+  recommendations   String?            @db.Text
+  customerSignature String?
+  status            InterventionStatus @default(PLANNED)
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  customerId     String?
+  customer       Customer?   @relation(fields: [customerId], references: [id])
+  leadId         String?
+  lead           Lead?       @relation(fields: [leadId], references: [id])
+  quoteNumber    String      @unique
+  title          String
+  description    String      @db.Text
+  estimatedValue Decimal?    @db.Decimal(10, 2)
+  vatRate        Decimal?    @db.Decimal(5, 2)
+  totalValue     Decimal?    @db.Decimal(10, 2)
+  status         QuoteStatus @default(DRAFT)
+  sentAt         DateTime?
+  acceptedAt     DateTime?
+  refusedAt      DateTime?
+  validUntil     DateTime?
+  notes          String?     @db.Text
+
+  lines       QuoteLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model QuoteLine {
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @default(1) @db.Decimal(10, 2)
+  unit        String?
+  unitPrice   Decimal @default(0) @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(10, 2)
+  vatRate     Decimal @default(23) @db.Decimal(5, 2)
+  total       Decimal @default(0) @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
+}
+
+model Attachment {
+  id           String               @id @default(cuid())
+  fileName     String
+  originalName String
+  url          String
+  mimeType     String?
+  size         Int?
+  entityType   AttachmentEntityType
+  entityId     String
+  uploadedById String?
+  uploadedBy   User?                @relation(fields: [uploadedById], references: [id])
+
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model Note {
+  id         String         @id @default(cuid())
+  content    String         @db.Text
+  entityType NoteEntityType
+  entityId   String
+  visibility NoteVisibility @default(INTERNAL)
+  authorId   String?
+  author     User?          @relation(fields: [authorId], references: [id])
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([entityType, entityId])
+}
+
+model ActivityLog {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  previousValue Json?
+  newValue      Json?
+  metadata      Json?
+  actorId       String?
+  actor         User?    @relation(fields: [actorId], references: [id])
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
