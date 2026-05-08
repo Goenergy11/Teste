@@ -12,7 +12,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "prisma:validate": "node scripts/prisma-validate.mjs"
+    "prisma:validate": "node scripts/prisma-validate.mjs",
+    "github:remote": "node scripts/configure-github-remote.mjs",
+    "github:push": "node scripts/push-github.mjs"
   },
   "optionalDependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

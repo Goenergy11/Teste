@@ -26,6 +26,7 @@ A implementação está a avançar por incrementos pequenos e validáveis, segui
 8. **Website público** — [`docs/public-website.md`](docs/public-website.md)
 9. **Captação de leads** — [`docs/lead-capture.md`](docs/lead-capture.md)
 10. **Backoffice inicial** — [`docs/admin-backoffice.md`](docs/admin-backoffice.md)
+11. **Envio para GitHub** — [`docs/github-push.md`](docs/github-push.md)
 
 ## Como visualizar a documentação
 
@@ -57,6 +58,17 @@ npm run typecheck
 npm run build
 npm run prisma:validate
 ```
+
+## Como enviar para GitHub
+
+Depois de criar um repositório vazio no GitHub, configure o remote e envie a branch atual com:
+
+```bash
+npm run github:remote -- https://github.com/UTILIZADOR/gopools-platform.git
+npm run github:push
+```
+
+Também pode usar SSH. Consulte [`docs/github-push.md`](docs/github-push.md) para detalhes.
 
 ## Ainda fora do âmbito implementado
 
