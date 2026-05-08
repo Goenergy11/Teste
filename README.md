@@ -61,14 +61,13 @@ npm run prisma:validate
 
 ## Como enviar para GitHub
 
-Depois de criar um repositório vazio no GitHub, configure o remote e envie a branch atual com:
+Pode enviar a branch atual passando o URL do repositório diretamente:
 
 ```bash
-npm run github:remote -- https://github.com/UTILIZADOR/gopools-platform.git
-npm run github:push
+npm run github:push -- https://github.com/UTILIZADOR/gopools-platform.git
 ```
 
-Também pode usar SSH. Consulte [`docs/github-push.md`](docs/github-push.md) para detalhes.
+Também pode usar SSH, `GITHUB_REMOTE_URL` ou publicação automática com `GITHUB_TOKEN`, `GITHUB_OWNER` e `GITHUB_REPOSITORY_NAME`. Consulte [`docs/github-push.md`](docs/github-push.md) para detalhes.
 
 ## Ainda fora do âmbito implementado
 
